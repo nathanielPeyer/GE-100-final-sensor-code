@@ -42,8 +42,21 @@ bool isLoadTime[5];
 
 void setup() 
 {
+  Serial.begin(9600);
+
+  //setting up display for later
+  display.begin(SSD1306_SWITCHCAPVCC,SCREEN_ADDRESS);
+  display.clearDisplay();
+
+  //setting up output pins
   pinMode(YELLOWLED, OUTPUT);
   pinMode(BLUELED, OUTPUT);
+  
+  //setting up input pins
+  pinMode(TAPSENSOR, INPUT);
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, INPUT);
 }
 
 void loop() 
@@ -75,4 +88,5 @@ void loop()
 
 
   timeOuter++;
+  delay(1000);
 }
