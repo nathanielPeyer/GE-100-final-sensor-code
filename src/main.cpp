@@ -16,7 +16,8 @@ const int YELLOWLED = 13;
 const int BLUELED = 12;
 const int TAPSENSOR = 1;
 
-int timeInner = 0;
+int timeInner1 = 0;
+int timeInner2 = 0;
 int timeOuter = 0;
 
 long int tempSensoruVolts;
@@ -87,6 +88,7 @@ void loop()
 
 
 
+  //waiting a second before going through loop again.
   timeOuter++;
   delay(1000);
 }
