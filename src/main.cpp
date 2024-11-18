@@ -14,6 +14,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 const int YELLOWLED = 13;
 const int BLUELED = 12;
+const int REDLED = 11;
 const int TAPSENSOR = 1;
 
 int timeInner1 = 0;
@@ -23,6 +24,8 @@ int timeOuter = 0;
 long int tempSensoruVolts;
 long int tempSensoruDC;
 long int tempSensoruDF;
+long int intialTempuDF = 0;
+long int tempAvg;
 long int photoSensorVolt;
 long int photoSensoruVolt;
 long int touchSensorVolts;
@@ -54,6 +57,7 @@ void setup()
   //setting up output pins
   pinMode(YELLOWLED, OUTPUT);
   pinMode(BLUELED, OUTPUT);
+  pinMode(REDLED, OUTPUT);
   
   //setting up input pins
   pinMode(TAPSENSOR, INPUT);
@@ -136,7 +140,24 @@ void loop()
   }
   if(timeOuter%10 == 0)
   {
-
+    tempDFStorage[timeOuter] = tempSensoruDF;
+    if(intialTempuDF == 0)
+    {
+      intialTempuDF = tempSensoruDF;
+    }
+    if((tempSensoruDF >= (intialTempuDF+5*MICRO)) || (tempSensoruDF) <= (intialTempuDF+5*MICRO))
+    {
+      digitalWrite(BLUELED, HIGH);
+    }
+    for(int i = 0; i < 10; i++)
+    {
+      tempAvg = tempAvg + tempDFStorage[i];
+    }
+    tempAvg = tempAvg/10;
+  }
+  else
+  {
+    tempDFStorage[timeOuter] = tempSensoruDF;
   }
   
   //waiting a second before going through loop again.
