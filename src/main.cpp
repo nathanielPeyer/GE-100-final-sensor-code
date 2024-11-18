@@ -24,8 +24,9 @@ long int tempSensoruVolts;
 long int tempSensoruDC;
 long int tempSensoruDF;
 long int photoSensorVolt;
+long int photoSensoruVolt;
 long int touchSensorVolts;
-long int tapStateVolts;
+long int tapState;
 
 long int tempDFStorage[18];
 long int tempDFTempStorage[10];
@@ -33,11 +34,12 @@ long int tempDFTempStorage[10];
 bool isDark;
 bool isLoad;
 bool isVibration;
+bool isLoad1;
+bool isLoad2;
 
 bool isDarkStorage[180];
 bool isLoadStorage[180];
 bool isVibrationStorage[180];
-bool isLoadTime[5];
 
 
 
@@ -62,6 +64,10 @@ void setup()
 
 void loop() 
 {
+  //resetting lights
+  digitalWrite(YELLOWLED, LOW);
+  digitalWrite(BLUELED, LOW);
+  
   //shift data in storage arrays so there is an open slot.
   if(timeOuter == 180)
   {
@@ -79,15 +85,60 @@ void loop()
     {
       tempDFTempStorage[i-1] = tempDFStorage[i];
     }
-    for(int i = 1; i < 5; i++)
-    {
-      isLoadTime[i-1] = isLoadTime[i];
-    }
     timeOuter--;
   }
 
+  //scanning in all data and converting to proper values
+  tempSensoruVolts = (long)analogRead(A0);
+  photoSensorVolt = (long)analogRead(A1);
+  touchSensorVolts = (long)analogRead(A2);
+  tapState = (long)digitalRead(TAPSENSOR);
 
+  //conversions
+  tempSensoruVolts = tempSensoruVolts*(5000000/1024);
+  photoSensoruVolt = photoSensorVolt*(5000000/1024);
+  touchSensorVolts = touchSensorVolts*(5000000/1024);
+  tempSensoruDC = (tempSensoruVolts-500000)*100;
+  tempSensoruDF = tempSensoruDC*9/5+32000000;
 
+  //checking if there is a load
+  if(touchSensorVolts < 2.5*MICRO)
+  {
+    timeInner1++;
+    if(timeInner1 >= 6)
+    {
+      timeInner1 = 1;
+      isLoad1 = false;
+      isLoad2 = false;
+    }
+    // defining load as true.
+    //storing values for 3 minutes before being written over.
+    isLoad = true;
+    isLoadStorage[timeOuter]= isLoad;
+    //checks for second load
+    if(isLoad1 == false)
+    {
+      isLoad1 = true;
+    }
+    else
+    {
+      //if found triggers yellow led
+      isLoad2 = true;
+      timeInner1 = 10;
+      digitalWrite(YELLOWLED, HIGH);
+    }
+  }
+  else
+  {
+    //storing values for 3 minutes before being written over.
+    isLoad = false;
+    isLoadStorage[timeOuter] = isLoad;
+  }
+  if(timeOuter%10 == 0)
+  {
+
+  }
+  
   //waiting a second before going through loop again.
   timeOuter++;
   delay(1000);
