@@ -132,7 +132,8 @@ void loop()
     //storing values for 3 minutes before being written over.
     isLoad = true;
     sprintf(loadDetected, "A load has been detected near or on the bridge!");
-    isLoadStorage[timeOuter]= isLoad;
+    display.println(loadDetected);
+    isLoadStorage[timeOuter] = isLoad;
     //checks for second load
     
     if(isLoad1 == false)
@@ -173,6 +174,7 @@ void loop()
     }
     tempAvg = tempAvg/10;
     sprintf(tempOut, "The current tempature is %ld.%06ld F, The average temperature over the last ten seconds is %ld.%06ld F.",tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
+    display.println(tempOut);
   }
   else
   {
@@ -215,12 +217,14 @@ void loop()
   if(darknessStorage[timeOuter] == 2)
   {
     sprintf(isDark, "It is dark by the bridge!");
+    display.println(isDark);
   }
 
   //checking for load using sensor number 2
   if(tapState == HIGH)
   {
     sprintf(vibrationDetected, "A load has been detected by sensor number 2.");
+    display.println(vibrationDetected);
     isVibration = true;
   }
   else
