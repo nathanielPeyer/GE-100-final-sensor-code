@@ -119,8 +119,6 @@ void loop()
   {
     timeInner++;
     
-    
-
     if(timeInner >= 6)
     {
       timeInner = 1;
