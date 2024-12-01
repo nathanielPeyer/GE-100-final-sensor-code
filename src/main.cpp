@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <stdio.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -8,21 +9,31 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-#define SCREEN_ADDRESS 0x3c
+#define SCREEN_ADDRESS 0x3C
+#define YELLOW_LED  13
+#define BLUE_LED  12
+#define RED_LED  11
+#define TAP_SENSOR 2
+#define PRESENCE_SENSOR 3
+#define TEMP_SENSOR A0
+#define PHOTO_SENSOR A1
+#define THREE_MINUTES 10
+#define DARKNESS_LEVEL_ONE 22*MICRO/10
+#define DARKNESS_LEVEL_TWO 2*MICRO/10
+#define PRESENT 1
+#define LOADED 1
+#define NOT_LOADED 0
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-const int YELLOWLED = 13;
-const int BLUELED = 12;
-const int REDLED = 11;
-const int TAPSENSOR = 1;
 
 int timeInner = 0;
 int timeOuter = 0;
-int darkness = 0;
-int tapState;
+int darkness = 4;
+int previousDarkness = 4;
+int loadState = NOT_LOADED;
+int previousLoadState = NOT_LOADED;
+int presenceSensor = -1;
+int timeOfLoad = -1;
 
-int darknessStorage[180];
 
 long int intialTempuDF = 0;
 long int tempSensoruVolts;
@@ -31,155 +42,120 @@ long int tempSensoruDF;
 long int tempAvg;
 long int photoSensorVolt;
 long int photoSensoruVolt;
-long int touchSensorVolts;
 
 
-long int tempDFStorage[18];
-long int tempDFTempStorage[10];
-
-bool isLoad;
-bool isVibration;
-bool isLoad1;
-bool isLoad2;
-
-bool isLoadStorage[180];
-bool isVibrationStorage[180];
-
-char loadDetected[50];
-char vibrationDetected[50];
 char tempOut[100];
-char isDark[30];
+
+long int tempDFStorage[10];
+//long int tempDFTempStorage[10];
+
+bool isLoad = false;
+bool isNear = false;
+
+
+//char isDark[30];
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
 
 void setup() 
 {
   Serial.begin(9600);
+  
+  //setting up output pins
+  pinMode(YELLOW_LED, OUTPUT);
+  pinMode(BLUE_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+
+  //setting up input pins
+  pinMode(TAP_SENSOR, INPUT);
+  pinMode (PRESENCE_SENSOR, INPUT);
+  pinMode(TEMP_SENSOR, INPUT);
+  pinMode(PHOTO_SENSOR, INPUT);
+
 
   //setting up display for later
-  display.begin(SSD1306_SWITCHCAPVCC,SCREEN_ADDRESS);
+  display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
   display.clearDisplay();
-
-  //setting up output pins
-  pinMode(YELLOWLED, OUTPUT);
-  pinMode(BLUELED, OUTPUT);
-  pinMode(REDLED, OUTPUT);
-  
-  //setting up input pins
-  pinMode(TAPSENSOR, INPUT);
-  pinMode(A0, INPUT);
-  pinMode(A1, INPUT);
-  pinMode(A2, INPUT);
+  digitalWrite(BLUE_LED, HIGH);
+  display.display();
+  digitalWrite(BLUE_LED, LOW);
+  delay(1000);
 }
 
 void loop() 
 {
+  //setting up display
+  display.setCursor(0,0);
+  display.setTextColor(WHITE);
+  display.setTextSize(1);
+  
   //resetting lights
-  digitalWrite(YELLOWLED, LOW);
-  digitalWrite(BLUELED, LOW);
+  digitalWrite(YELLOW_LED, LOW);
+  //todo check and make sure LED needs top be reset.
+  digitalWrite(BLUE_LED, LOW);
 
   //resetting some variables
   darkness = 4;
-  isLoad = false;
-  isVibration = false;
-  
-  //shift data in storage arrays so there is an open slot.
-  if(timeOuter == 180)
-  {
-    for(int i = 1; i < 180; i++)
-    {
-      darknessStorage[i-1] = darknessStorage[i];
-      isLoadStorage[i-1] = isLoadStorage[i];
-      isVibrationStorage[i-1]= isVibrationStorage[i];
-    }
-    for(int i = 1; i < 18; i++)
-    {
-      tempDFStorage[i-1] = tempDFStorage[i];
-    }
-    for(int i = 1; i < 10; i++)
-    {
-      tempDFTempStorage[i-1] = tempDFStorage[i];
-    }
-    timeOuter--;
-  }
 
   //scanning in all data and converting to proper values
   tempSensoruVolts = (long)analogRead(A0);
   photoSensorVolt = (long)analogRead(A1);
-  touchSensorVolts = (long)analogRead(A2);
-  tapState = digitalRead(TAPSENSOR);
+  loadState = digitalRead(TAP_SENSOR);
+  presenceSensor = digitalRead(PRESENCE_SENSOR);
 
   //conversions
   tempSensoruVolts = tempSensoruVolts*(5000000/1024);
   photoSensoruVolt = photoSensorVolt*(5000000/1024);
-  touchSensorVolts = touchSensorVolts*(5000000/1024);
   tempSensoruDC = (tempSensoruVolts-500000)*100;
   tempSensoruDF = tempSensoruDC*9/5+32000000;
 
   //checking if there is a load
-  if(touchSensorVolts < 2.5*MICRO)
+  if(presenceSensor == PRESENT)
   {
-    timeInner++;
-
-    if(timeInner >= 6)
-    {
-      timeInner = 1;
-      isLoad1 = false;
-      isLoad2 = false;
-    }
-    
     // defining load as true.
     //storing values for 3 minutes before being written over.
-    isLoad = true;
-    sprintf(loadDetected, "A load has been detected near or on the bridge!");
-    Serial.println(loadDetected);
-    display.println(loadDetected);
-    isLoadStorage[timeOuter] = isLoad;
-    //checks for second load
-    
-    if(isLoad1 == false)
+    if(!isNear)
     {
-      isLoad1 = true;
-
-    }
-    else
-    {
-      //if found triggers yellow led
-      isLoad2 = true;
-      timeInner = 10;
-      digitalWrite(YELLOWLED, HIGH);
+      isNear = true;
+      snprintf(tempOut, sizeof(tempOut) - 1, "Load near bridge!");
+      Serial.println(tempOut);
+      display.println(tempOut);
     }
   }
   else
   {
-    //storing values for 3 minutes before being written over.
-    isLoad = false;
-    isLoadStorage[timeOuter] = isLoad;
+    isNear = false;
   }
   
-  if(timeOuter%10 == 0)
+  tempDFStorage[timeOuter%10] = tempSensoruDF;
+  //checking for +- 5 degrees from starting temp
+  if(timeOuter == 0)
+  {
+    intialTempuDF = tempSensoruDF;
+  }
+  if((tempSensoruDF >= (intialTempuDF+5*MICRO)) || (tempSensoruDF) <= (intialTempuDF-5*MICRO))
+  {
+    digitalWrite(BLUE_LED, HIGH);
+  }
+
+  if((timeOuter%10 == 0) && (timeOuter != 0))
   {
     tempAvg = 0;
-    tempDFStorage[timeOuter] = tempSensoruDF;
-    if(intialTempuDF == 0)
-    {
-      intialTempuDF = tempSensoruDF;
-    }
-    if((tempSensoruDF >= (intialTempuDF+5*MICRO)) || (tempSensoruDF) <= (intialTempuDF+5*MICRO))
-    {
-      digitalWrite(BLUELED, HIGH);
-    }
+    
     for(int i = 0; i < 10; i++)
     {
       tempAvg = tempAvg + tempDFStorage[i];
     }
     tempAvg = tempAvg/10;
-    sprintf(tempOut, "The current tempature is %ld.%06ld F, The average temperature over the last ten seconds is %ld.%06ld F.",tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
+ #if 0
+    snprintf(tempOut, sizeof(tempOut) - 1, "The current temperature is %ld.%06ld F, The average temperature over the last ten seconds is %ld.%06ld F.",
+             tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
     Serial.println(tempOut);
+    snprintf(tempOut, sizeof(tempOut) - 1, "Cur temp: %ld.%06ldF\nAvg temp: %ld.%06ldF",tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
     display.println(tempOut);
-  }
-  else
-  {
-    tempDFStorage[timeOuter] = tempSensoruDF;
-  }
+#endif
+ }
   
   /*
     Darkness scale
@@ -190,52 +166,75 @@ void loop()
   */
   
   //assigning values to darkness levels
-  if(photoSensoruVolt > 2.2*MICRO)
+  /*Serial.print(photoSensoruVolt/MICRO);
+  Serial.print(".");
+  Serial.println(photoSensoruVolt%MICRO);*/
+  if(photoSensoruVolt > DARKNESS_LEVEL_ONE)
   {
     darkness = 0;
   }
-  else if( photoSensoruVolt < 1.0*MICRO)
+  else if( photoSensoruVolt < DARKNESS_LEVEL_TWO)
   {
     darkness = 2;
+    Serial.println("Really Dark");
+    //display.println("Really Dark");
   }
   else
   {
     darkness = 1;
   }
-  darknessStorage[timeOuter] = darkness;
   
-  //checking if it went from day to dusk.
-  if(timeOuter > 0)
+   //checking if it went from day to dusk.
+  if((previousDarkness == 0) && (darkness == 1))
   {
-    if(((darknessStorage[timeOuter]+darknessStorage[timeOuter-1]) == 1) || ((darknessStorage[timeOuter]-darknessStorage[timeOuter-1]) == 0))
-    {      
-      digitalWrite(REDLED, HIGH);
+    digitalWrite(RED_LED, HIGH);
+    Serial.println("Changed from day to dusk.");
+    //display.println("Changed from day to dusk");
+  }
+  else if((previousDarkness != 2) && (darkness == 2))
+  {
+    Serial.println("It is totally dark.");
+    //display.println("It is totally dark.");
+  }
+  else if((previousDarkness > 0) && (darkness == 0))
+  {
+    digitalWrite(RED_LED, LOW);
+    Serial.println("It is day.");
+    //display.print("It is day.");
+  }
+  previousDarkness = darkness;
+
+  //checking for load using tap sensor and debounce it
+  if(loadState != previousLoadState)
+  {
+    if((loadState == LOADED) && (presenceSensor == PRESENT))
+    {
+      Serial.println("something");
+      if(isLoad == false)
+      {
+        Serial.println("Load on bridge!");
+        //display.println("Load on bridge!");
+        isLoad = true;
+        timeOfLoad = timeOuter;
+      }
+      else if(timeOfLoad +5 >= timeOuter)
+      {
+        digitalWrite(YELLOW_LED, HIGH);
+        Serial.println("A second load has been detected within 5 seconds of the first");
+        //display.println("Second Load");
+      }
+      else
+      {
+        digitalWrite(YELLOW_LED, LOW);
+        isLoad = false;
+      }
+      
     }
   }
-  
-  //checking if completely dark and if printing message
-  if(darknessStorage[timeOuter] == 2)
-  {
-    sprintf(isDark, "It is dark by the bridge!");
-    Serial.println(isDark);
-    display.println(isDark);
-  }
-
-  //checking for load using sensor number 2
-  if(tapState == HIGH)
-  {
-    sprintf(vibrationDetected, "A load has been detected by sensor number 2.");
-    Serial.println(vibrationDetected);
-    display.println(vibrationDetected);
-    isVibration = true;
-  }
-  else
-  {
-    isVibration = false;
-  }
-  isVibrationStorage[timeOuter] = isVibration;
+  previousLoadState = loadState;
 
   //waiting a second before going through loop again.
   timeOuter++;
+  display.display();
   delay(1000);
 }
