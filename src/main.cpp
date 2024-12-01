@@ -118,7 +118,7 @@ void loop()
   if(touchSensorVolts < 2.5*MICRO)
   {
     timeInner++;
-    
+
     if(timeInner >= 6)
     {
       timeInner = 1;
@@ -196,11 +196,11 @@ void loop()
   }
   else if( photoSensoruVolt < 1.0*MICRO)
   {
-    darkness = 1;
+    darkness = 2;
   }
   else
   {
-    darkness = 2;
+    darkness = 1;
   }
   darknessStorage[timeOuter] = darkness;
   
