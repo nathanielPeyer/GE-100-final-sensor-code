@@ -147,13 +147,11 @@ void loop()
       tempAvg = tempAvg + tempDFStorage[i];
     }
     tempAvg = tempAvg/10;
- #if 0
     snprintf(tempOut, sizeof(tempOut) - 1, "The current temperature is %ld.%06ld F, The average temperature over the last ten seconds is %ld.%06ld F.",
              tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
     Serial.println(tempOut);
     snprintf(tempOut, sizeof(tempOut) - 1, "Cur temp: %ld.%06ldF\nAvg temp: %ld.%06ldF",tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
     display.println(tempOut);
-#endif
  }
   
   /*
