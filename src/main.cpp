@@ -217,7 +217,7 @@ void loop()
       {
         digitalWrite(YELLOW_LED, HIGH);
         Serial.println("A second load has been detected within 5 seconds of the first");
-        //display.println("Second Load");
+        display.println(F("Second Load"));
       }
       else
       {
