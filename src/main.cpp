@@ -23,6 +23,8 @@
 #define LOADED 1
 #define NOT_LOADED 0
 
+bool isLoad = false;
+bool isNear = false;
 
 int timeInner = 0;
 int timeOuter = 0;
@@ -33,7 +35,6 @@ int previousLoadState = NOT_LOADED;
 int presenceSensor = -1;
 int timeOfLoad = -1;
 
-
 long int intialTempuDF = 0;
 long int tempSensoruVolts;
 long int tempSensoruDC;
@@ -42,14 +43,12 @@ long int tempAvg;
 long int photoSensorVolt;
 long int photoSensoruVolt;
 
+long int tempDFStorage[10];
 
 char tempOut[100];
 
-long int tempDFStorage[10];
-//long int tempDFTempStorage[10];
 
-bool isLoad = false;
-bool isNear = false;
+//long int tempDFTempStorage[10];
 
 
 //char isDark[30];
