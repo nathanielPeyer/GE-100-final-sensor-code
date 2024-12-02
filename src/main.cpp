@@ -216,7 +216,7 @@ void loop()
       else if(timeOfLoad +5 >= timeOuter)
       {
         digitalWrite(YELLOW_LED, HIGH);
-        Serial.println("A second load has been detected within 5 seconds of the first");
+        Serial.println(F("A second load has been detected within 5 seconds of the first"));
         display.println(F("Second Load"));
       }
       else
