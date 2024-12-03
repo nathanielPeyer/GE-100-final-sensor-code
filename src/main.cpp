@@ -1,18 +1,14 @@
 #include <Arduino.h>
 #include <stdio.h>
-#include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <SSD1306Ascii.h>
+#include <SSD1306AsciiAvrI2c.h>
 
 #define MICRO 1000000
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1
 #define SCREEN_ADDRESS 0x3C
-#define YELLOW_LED  13
-#define BLUE_LED  12
-#define RED_LED  11
+#define YELLOW_LED  12
+#define BLUE_LED  11
+#define RED_LED  13
 #define TAP_SENSOR 2
 #define PRESENCE_SENSOR 3
 #define TEMP_SENSOR A0
@@ -45,15 +41,12 @@ long int photoSensoruVolt;
 
 long int tempDFStorage[10];
 
-char tempOut[100];
+char tempOut[120];
+
+SSD1306AsciiAvrI2c simpleDisplay;
 
 
-//long int tempDFTempStorage[10];
 
-
-//char isDark[30];
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 
 void setup() 
@@ -73,21 +66,22 @@ void setup()
 
 
   //setting up display for later
-  display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
-  display.clearDisplay();
+  simpleDisplay.begin(&Adafruit128x64, SCREEN_ADDRESS);
+  simpleDisplay.setFont(System5x7);
+  simpleDisplay.clear();
+
   digitalWrite(BLUE_LED, HIGH);
-  display.display();
-  digitalWrite(BLUE_LED, LOW);
   delay(1000);
 }
 
 void loop() 
 {
   //setting up display
-  display.setCursor(0,0);
-  display.setTextColor(WHITE);
-  display.setTextSize(1);
-  
+  if (simpleDisplay.row() >= 6)
+  {
+    //simpleDisplay.setRow(0);
+    simpleDisplay.clear();
+  }
   //resetting lights
   digitalWrite(YELLOW_LED, LOW);
   //todo check and make sure LED needs top be reset.
@@ -116,9 +110,8 @@ void loop()
     if(!isNear)
     {
       isNear = true;
-      snprintf(tempOut, sizeof(tempOut) - 1, "Load near bridge!");
-      Serial.println(tempOut);
-      display.println(tempOut);
+      Serial.println(F("Load near bridge!"));
+      simpleDisplay.println("Load near bridge!");
     }
   }
   else
@@ -150,7 +143,8 @@ void loop()
              tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
     Serial.println(tempOut);
     snprintf(tempOut, sizeof(tempOut) - 1, "Cur temp: %ld.%06ldF\nAvg temp: %ld.%06ldF",tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
-    display.println(tempOut);
+    simpleDisplay.println(tempOut);
+    //.println(tempOut);
  }
   
   /*
@@ -172,7 +166,7 @@ void loop()
   else if( photoSensoruVolt < DARKNESS_LEVEL_TWO)
   {
     darkness = 2;
-    Serial.println("Really Dark");
+    //Serial.println("Really Dark");
     //display.println("Really Dark");
   }
   else
@@ -184,19 +178,19 @@ void loop()
   if((previousDarkness == 0) && (darkness == 1))
   {
     digitalWrite(RED_LED, HIGH);
-    Serial.println("Changed from day to dusk.");
-    //display.println("Changed from day to dusk");
+    Serial.println(F("Changed from day to dusk."));
+    simpleDisplay.println("Changed from day to dusk");
   }
   else if((previousDarkness != 2) && (darkness == 2))
   {
-    Serial.println("It is totally dark.");
-    //display.println("It is totally dark.");
+    Serial.println(F("It is totally dark."));
+    simpleDisplay.println("It is totally dark.");
   }
   else if((previousDarkness > 0) && (darkness == 0))
   {
     digitalWrite(RED_LED, LOW);
-    Serial.println("It is day.");
-    //display.print("It is day.");
+    Serial.println(F("It is day."));
+    //simpleDisplay.print("It is day.");
   }
   previousDarkness = darkness;
 
@@ -205,19 +199,19 @@ void loop()
   {
     if((loadState == LOADED) && (presenceSensor == PRESENT))
     {
-      Serial.println("something");
+      //Serial.println(F("something")); used for debugging
       if(isLoad == false)
       {
-        Serial.println("Load on bridge!");
-        //display.println("Load on bridge!");
+        Serial.println(F("Load on bridge!"));
+        simpleDisplay.println("Load on bridge!");
         isLoad = true;
         timeOfLoad = timeOuter;
       }
       else if(timeOfLoad +5 >= timeOuter)
       {
         digitalWrite(YELLOW_LED, HIGH);
-        Serial.println(F("A second load has been detected within 5 seconds of the first"));
-        display.println(F("Second Load"));
+        Serial.println(F("A second load has been detected within 5 seconds of the first."));
+        simpleDisplay.println("A second load has been detected within 5 seconds of the first.");
       }
       else
       {
@@ -231,6 +225,5 @@ void loop()
 
   //waiting a second before going through loop again.
   timeOuter++;
-  display.display();
   delay(1000);
 }
