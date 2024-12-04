@@ -15,9 +15,18 @@
 #define PHOTO_SENSOR A1
 #define DARKNESS_LEVEL_ONE 22*MICRO/10
 #define DARKNESS_LEVEL_TWO 2*MICRO/10
-#define PRESENT 1
+#define PRESENT 0
+#define NOT_PRESENT 1
 #define LOADED 1
 #define NOT_LOADED 0
+
+#define TEMP_SENSOR_LOAD 0 //Takes two lines
+#define LIGHT_SENSOR_ROW 2
+#define TOTAL_DARK_ROW 3
+#define LOAD_PRESENT_ROW 4
+#define LOAD_ON_ROW 5
+#define SECOND_LOAD_ROW 6
+#define TIME_ROW 7
 
 bool isLoad = false;
 bool isNear = false;
@@ -28,7 +37,8 @@ int darkness = 4;
 int previousDarkness = 4;
 int loadState = NOT_LOADED;
 int previousLoadState = NOT_LOADED;
-int presenceSensor = -1;
+int presenceSensor = NOT_PRESENT;
+int previousPresenceSenor = NOT_PRESENT;
 int timeOfLoad = -1;
 
 long int intialTempuDF = 0;
@@ -45,10 +55,6 @@ char tempOut[120];
 
 SSD1306AsciiAvrI2c simpleDisplay;
 
-
-
-
-
 void setup() 
 {
   Serial.begin(9600);
@@ -64,10 +70,10 @@ void setup()
   pinMode(TEMP_SENSOR, INPUT);
   pinMode(PHOTO_SENSOR, INPUT);
 
-
   //setting up display for later
   simpleDisplay.begin(&Adafruit128x64, SCREEN_ADDRESS);
   simpleDisplay.setFont(System5x7);
+  Serial.println("display is starting up");
   simpleDisplay.clear();
 
   digitalWrite(BLUE_LED, HIGH);
@@ -77,11 +83,7 @@ void setup()
 void loop() 
 {
   //setting up display
-  if (simpleDisplay.row() >= 6)
-  {
-    //simpleDisplay.setRow(0);
-    simpleDisplay.clear();
-  }
+  simpleDisplay.setCol(0);
   //resetting lights
   digitalWrite(YELLOW_LED, LOW);
   //todo check and make sure LED needs top be reset.
@@ -102,6 +104,7 @@ void loop()
   tempSensoruDC = (tempSensoruVolts-500000)*100;
   tempSensoruDF = tempSensoruDC*9/5+32000000;
 
+  #if 0
   //checking if there is a load
   if(presenceSensor == PRESENT)
   {
@@ -118,6 +121,7 @@ void loop()
   {
     isNear = false;
   }
+  #endif
   
   tempDFStorage[timeOuter%10] = tempSensoruDF;
   //checking for +- 5 degrees from starting temp
@@ -143,6 +147,7 @@ void loop()
              tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
     Serial.println(tempOut);
     snprintf(tempOut, sizeof(tempOut) - 1, "Cur temp: %ld.%06ldF\nAvg temp: %ld.%06ldF",tempSensoruDF/MICRO, tempSensoruDF%MICRO, tempAvg/MICRO, tempAvg%MICRO);
+    simpleDisplay.setRow(TEMP_SENSOR_LOAD);
     simpleDisplay.println(tempOut);
     //.println(tempOut);
  }
@@ -179,51 +184,97 @@ void loop()
   {
     digitalWrite(RED_LED, HIGH);
     Serial.println(F("Changed from day to dusk."));
-    simpleDisplay.println("Changed from day to dusk");
+    simpleDisplay.setRow(LIGHT_SENSOR_ROW);
+    simpleDisplay.println("Day to Dusk. ");
   }
   else if((previousDarkness != 2) && (darkness == 2))
   {
     Serial.println(F("It is totally dark."));
+    simpleDisplay.setRow(TOTAL_DARK_ROW);
     simpleDisplay.println("It is totally dark.");
   }
   else if((previousDarkness > 0) && (darkness == 0))
   {
     digitalWrite(RED_LED, LOW);
-    Serial.println(F("It is day."));
-    //simpleDisplay.print("It is day.");
+    simpleDisplay.setRow(LIGHT_SENSOR_ROW);
+    Serial.println(F("It is day.   "));
+    simpleDisplay.print("It is day.   ");
   }
   previousDarkness = darkness;
 
+
   //checking for load using tap sensor and debounce it
-  if(loadState != previousLoadState)
+  if(presenceSensor == PRESENT)
   {
-    if((loadState == LOADED) && (presenceSensor == PRESENT))
+
+    if((loadState != previousLoadState) || ((presenceSensor !=previousPresenceSenor )))
     {
-      //Serial.println(F("something")); used for debugging
-      if(isLoad == false)
+      snprintf(tempOut, sizeof(tempOut)-1, "Load state changed to: %d prescense is: %d", loadState, presenceSensor);
+      Serial.println(tempOut);
+      if(presenceSensor == PRESENT)
       {
-        Serial.println(F("Load on bridge!"));
-        simpleDisplay.println("Load on bridge!");
-        isLoad = true;
-        timeOfLoad = timeOuter;
+        if(previousPresenceSenor != PRESENT)
+        {
+          Serial.println("Load near bridge!");
+          simpleDisplay.setRow(LOAD_PRESENT_ROW);
+          simpleDisplay.println("Load near bridge!");
+        }
       }
-      else if(timeOfLoad +5 >= timeOuter)
+
+      if(loadState == LOADED)
       {
-        digitalWrite(YELLOW_LED, HIGH);
-        Serial.println(F("A second load has been detected within 5 seconds of the first."));
-        simpleDisplay.println("A second load has been detected within 5 seconds of the first.");
+        if(isLoad != LOADED)
+        {
+          Serial.println(F("Load on bridge!"));
+          simpleDisplay.setRow(LOAD_ON_ROW);
+          simpleDisplay.println("Load on bridge!");
+          //isLoad = true;
+          timeOfLoad = timeOuter;
+        }
+        else if(timeOfLoad + 5 >= timeOuter)
+        {
+          digitalWrite(YELLOW_LED, HIGH);
+          Serial.println(F("A second load has been detected within 5 seconds of the first."));
+          simpleDisplay.setRow(SECOND_LOAD_ROW);
+          simpleDisplay.println("Second Load!");
+        }
+        else
+        {
+          simpleDisplay.setRow(SECOND_LOAD_ROW);
+          simpleDisplay.println("            ");
+        }
       }
-      else
-      {
-        digitalWrite(YELLOW_LED, LOW);
-        isLoad = false;
-      }
-      
     }
+    else if((loadState != LOADED) || (presenceSensor != PRESENT))
+    {
+      digitalWrite(YELLOW_LED, LOW);
+      Serial.println("Load not Present!");
+      simpleDisplay.setRow(LOAD_PRESENT_ROW);
+      simpleDisplay.println("Load not present!");
+      Serial.println("Load removed!  ");
+      simpleDisplay.setRow(LOAD_ON_ROW);
+      simpleDisplay.println("Load removed!  ");
+      //isLoad = false;
+    } 
   }
+  Serial.print("Load state: ");
+  Serial.println(loadState);
+  Serial.print("Previous load state: ");
+  Serial.println(previousLoadState);
+  Serial.print("presence State: ");
+  Serial.println(presenceSensor);
+  Serial.print("Previous presence state: ");
+  Serial.println(previousPresenceSenor);
+
   previousLoadState = loadState;
+  previousPresenceSenor = presenceSensor;
 
   //waiting a second before going through loop again.
   timeOuter++;
+  Serial.println(timeOuter);
+  simpleDisplay.setRow(TIME_ROW);
+  simpleDisplay.print("Time: ");
+  simpleDisplay.println(timeOuter);
+  
   delay(1000);
 }
