@@ -223,7 +223,7 @@ void loop()
 
       if(loadState == LOADED)
       {
-        if(isLoad != LOADED)
+        if(previousLoadState != LOADED)
         {
           Serial.println(F("Load on bridge!"));
           simpleDisplay.setRow(LOAD_ON_ROW);
