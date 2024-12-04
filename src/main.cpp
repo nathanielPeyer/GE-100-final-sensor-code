@@ -21,14 +21,14 @@
 #define NOT_LOADED 0
 
 #define TEMP_SENSOR_LOAD 0 //Takes two lines
-#define LIGHT_SENSOR_ROW 2
-#define TOTAL_DARK_ROW 3
-#define LOAD_PRESENT_ROW 4
-#define LOAD_ON_ROW 5
-#define SECOND_LOAD_ROW 6
-#define TIME_ROW 7
+#define LIGHT_SENSOR_ROW 2 //Takes one line
+#define TOTAL_DARK_ROW 3   //Takes one line
+#define LOAD_PRESENT_ROW 4 //Takes one line
+#define LOAD_ON_ROW 5      //Takes one line
+#define SECOND_LOAD_ROW 6  //Takes one line
+#define TIME_ROW 7         //Takes one line
 
-
+//switch used to toggle OLED display
 #if 1
 # define DISPLAY_PRINTLN(MSG) simpleDisplay.println(MSG)
 # define DISPLAY_PRINT(MSG) simpleDisplay.print(MSG)
@@ -150,10 +150,6 @@ void loop()
     4 - default state
   */
   
-  //assigning values to darkness levels
-  /*Serial.print(photoSensoruVolt/MICRO);
-  Serial.print(".");
-  Serial.println(photoSensoruVolt%MICRO);*/
   if(photoSensoruVolt > DARKNESS_LEVEL_ONE)
   {
     darkness = 0;
@@ -161,8 +157,6 @@ void loop()
   else if( photoSensoruVolt < DARKNESS_LEVEL_TWO)
   {
     darkness = 2;
-    //Serial.println("Really Dark");
-    //display.println("Really Dark");
   }
   else
   {
@@ -244,18 +238,6 @@ void loop()
       isLoad = false;
     } 
   }
-
-
-  /*
-  Serial.print("Load state: ");
-  Serial.println(loadState);
-  Serial.print("Previous load state: ");
-  Serial.println(previousLoadState);
-  Serial.print("presence State: ");
-  Serial.println(presenceSensor);
-  Serial.print("Previous presence state: ");
-  Serial.println(previousPresenceSensor);
-  */
 
   previousLoadState = loadState;
   previousPresenceSensor = presenceSensor;
