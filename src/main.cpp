@@ -29,7 +29,7 @@
 #define TIME_ROW 7
 
 
-#if 0
+#if 1
 # define DISPLAY_PRINTLN(MSG) simpleDisplay.println(MSG)
 # define DISPLAY_PRINT(MSG) simpleDisplay.print(MSG)
 #else
