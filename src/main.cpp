@@ -1,10 +1,11 @@
-#include <Arduino.h>
-#include <stdio.h>
-#include <Wire.h>
-#include <SSD1306Ascii.h>
-#include <SSD1306AsciiAvrI2c.h>
+#include <Arduino.h>            //allows for arduino control
+#include <stdio.h>              //standard c/c++ input output header file
+#include <Wire.h>               //used for I2C communication
+#include <SSD1306Ascii.h>       //new libary used
+#include <SSD1306AsciiAvrI2c.h> //new libary used
 
-#define MICRO 1000000
+// quantity's that dont change and are stored in the flash memory
+#define MICRO 1000000   //used for converting values so they line up with micro values from calcs
 #define SCREEN_ADDRESS 0x3C
 #define YELLOW_LED  12
 #define BLUE_LED  11
@@ -19,7 +20,6 @@
 #define NOT_PRESENT 1
 #define LOADED 1
 #define NOT_LOADED 0
-
 #define TEMP_SENSOR_LOAD 0 //Takes two lines
 #define LIGHT_SENSOR_ROW 2 //Takes one line
 #define TOTAL_DARK_ROW 3   //Takes one line
@@ -28,7 +28,7 @@
 #define SECOND_LOAD_ROW 6  //Takes one line
 #define TIME_ROW 7         //Takes one line
 
-//switch used to toggle OLED display
+//switch used to toggle OLED display to turn off display replace 1 with 0.
 #if 1
 # define DISPLAY_PRINTLN(MSG) simpleDisplay.println(MSG)
 # define DISPLAY_PRINT(MSG) simpleDisplay.print(MSG)
@@ -37,9 +37,10 @@
 # define DISPLAY_PRINT(MSG)
 #endif
 
+//defining booleans for latter use and initlazying to false.
 bool isLoad = false;
 bool isNear = false;
-
+//defining ints for latter use and initlazying
 int timeInner = 0;
 int timeOuter = 0;
 int darkness = 4;
@@ -50,6 +51,7 @@ int presenceSensor = NOT_PRESENT;
 int previousPresenceSensor = NOT_PRESENT;
 int timeOfLoad = -1;
 
+//defining long ints for int calculations latter so no floating point needed.
 long int intialTempuDF = 0;
 long int tempSensoruVolts;
 long int tempSensoruDC;
@@ -58,10 +60,13 @@ long int tempAvg;
 long int photoSensorVolt;
 long int photoSensoruVolt;
 
+//used for finding average temp over 10 sec
 long int tempDFStorage[10];
 
+//This is really a string and is used for some of the print statements
 char tempOut[120];
 
+//building an object of the display
 SSD1306AsciiAvrI2c simpleDisplay;
 
 void setup() 
@@ -84,8 +89,7 @@ void setup()
   simpleDisplay.setFont(System5x7);
   Serial.println("display is starting up");
   simpleDisplay.clear();
-
-  digitalWrite(BLUE_LED, HIGH);
+  //used to ensure display was working
   delay(1000);
 }
 
@@ -93,12 +97,12 @@ void loop()
 {
   //setting up display
   simpleDisplay.setCol(0);
+
   //resetting lights
   digitalWrite(YELLOW_LED, LOW);
-  //todo check and make sure LED needs top be reset.
   digitalWrite(BLUE_LED, LOW);
 
-  //resetting some variables
+  //resetting darkness value
   darkness = 4;
 
   //scanning in all data and converting to proper values
@@ -113,17 +117,21 @@ void loop()
   tempSensoruDC = (tempSensoruVolts-500000)*100;
   tempSensoruDF = tempSensoruDC*9/5+32000000;
 
+  //writting over old temp data in average array
   tempDFStorage[timeOuter%10] = tempSensoruDF;
-  //checking for +- 5 degrees from starting temp
+
+  //setting initial temp first time through the loop.
   if(timeOuter == 0)
   {
     intialTempuDF = tempSensoruDF;
   }
+  //checking for temp change of +- 5 degress
   if((tempSensoruDF >= (intialTempuDF+5*MICRO)) || (tempSensoruDF) <= (intialTempuDF-5*MICRO))
   {
     digitalWrite(BLUE_LED, HIGH);
   }
 
+  //printing temp and avg temp every 10 sec
   if((timeOuter%10 == 0) && (timeOuter != 0))
   {
     tempAvg = 0;
@@ -141,7 +149,6 @@ void loop()
     DISPLAY_PRINTLN(tempOut);
   }
 
-  
   /*
     Darkness scale
     0 - day
@@ -150,6 +157,7 @@ void loop()
     4 - default state
   */
   
+  //setting darkness value to correct value as seen in above table
   if(photoSensoruVolt > DARKNESS_LEVEL_ONE)
   {
     darkness = 0;
@@ -186,9 +194,7 @@ void loop()
   }
   previousDarkness = darkness;
 
-
-  //checking for load using tap sensor and debounce it
-
+  //checking for load using tap sensor and presence using tracking sensor, there must be an object present for there to be a load
   if((loadState != previousLoadState) || (presenceSensor !=previousPresenceSensor ))
   {
     snprintf(tempOut, sizeof(tempOut)-1, "Load state changed to: %d prescense is: %d", loadState, presenceSensor);
@@ -222,6 +228,7 @@ void loop()
         else
         {
           simpleDisplay.setRow(SECOND_LOAD_ROW);
+          //needs to be the same number of characters as the line it overrides
           DISPLAY_PRINTLN("            ");
         }
       }
@@ -239,15 +246,15 @@ void loop()
     } 
   }
 
+  //updating previous values for next time through the loop
   previousLoadState = loadState;
   previousPresenceSensor = presenceSensor;
 
-  //waiting a second before going through loop again.
+  //waiting a second before going through loop again and printing the time to console and display
   timeOuter++;
   Serial.println(timeOuter);
   simpleDisplay.setRow(TIME_ROW);
   DISPLAY_PRINT("Time: ");
   DISPLAY_PRINTLN(timeOuter);
-  
   delay(1000);
 }
